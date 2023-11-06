@@ -1,0 +1,25 @@
+[debug] [2023-10-23T09:49:21.197Z] ----------------------------------------------------------------------
+[debug] [2023-10-23T09:49:21.199Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\Safi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2023-10-23T09:49:21.199Z] CLI Version:   12.7.0
+[debug] [2023-10-23T09:49:21.199Z] Platform:      win32
+[debug] [2023-10-23T09:49:21.199Z] Node Version:  v16.13.2
+[debug] [2023-10-23T09:49:21.201Z] Time:          Mon Oct 23 2023 15:19:21 GMT+0530 (India Standard Time)
+[debug] [2023-10-23T09:49:21.202Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2023-10-23T09:49:21.208Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2023-10-23T09:49:21.208Z] > authorizing via signed-in user (safik132@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  C:\React\React native Alpha\Alpha
+
+Before we get started, keep in mind:
+
+  * You are currently outside your home directory
+

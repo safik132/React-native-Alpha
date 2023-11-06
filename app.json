@@ -4,10 +4,10 @@
     "slug": "Alpha",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/aces-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/aces-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -15,16 +15,24 @@
       "**/*"
     ],
     "ios": {
+      "bundleIdentifier": "com.safi11.Alpha",
       "supportsTablet": true
-    },
+    }
+    ,
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/aces-logo.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.safi11.Alpha"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/aces-logo.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9da410c0-8237-422f-b2a6-a6181029cea0"
+      }
     }
   }
 }

@@ -7,8 +7,9 @@ export default function Homepage({navigation}) {
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('https://alpha-backend-7vs7.onrender.com/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,6 +41,7 @@ export default function Homepage({navigation}) {
       console.log("An error occurred:", error);
       alert("An error occurred. Please try again.");
     }
+    
   };
   
     return (
@@ -49,7 +51,8 @@ export default function Homepage({navigation}) {
           <View style={styles.loginDiv}>
             <Text style={styles.headerText}>Login</Text>
             <TextInput placeholder="Email" style={styles.input} onChangeText={setEmail} value={email} />
-            <TextInput placeholder="Password" style={styles.input} onChangeText={setPassword} value={password} />
+            <TextInput placeholder="Password" secureTextEntry={true} style={styles.input} onChangeText={setPassword} value={password} />
+
             <Pressable style={styles.button} onPress={handleLogin}>
               <Text style={styles.buttonText}>Login</Text>
             </Pressable>

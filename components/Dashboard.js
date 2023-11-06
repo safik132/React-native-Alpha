@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import Icon from 'react-native-vector-icons/FontAwesome';
 import axios from 'axios'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from '@react-navigation/native';
 
 export default function Dashboard() {
   const [isPunchInEnabled, setPunchInEnabled] = useState(true);
@@ -11,6 +12,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date());
   const [employeeId, setEmployeeId] = useState(null);
   const [loggedInAt, setLoggedInAt] = useState(null);
+  const navigation = useNavigation(); 
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -58,8 +60,19 @@ export default function Dashboard() {
     // Navigate to settings or perform other actions
   };
 
-  const onLogoutPress = () => {
-    // Perform logout actions
+  const onLogoutPress = async () => {
+    try {
+      // Clear AsyncStorage
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('userId');
+      await AsyncStorage.removeItem('lastPunchState');
+      await AsyncStorage.removeItem('loggedInAt');
+    
+      // Navigate to Login or any initial screen
+      navigation.navigate('Homepage'); // Replace 'Login' with the name of your Login screen
+    } catch(e) {
+      console.log("Error in logout:", e);
+    }
   };
   const punchIn = async () => {
     // Make sure employeeId is available
@@ -67,7 +80,7 @@ export default function Dashboard() {
     
     const now = new Date();
     try {
-      const response = await axios.post('http://localhost:5000/api/employee/punch', {
+      const response = await axios.post('https://alpha-backend-7vs7.onrender.com/api/employee/punch', {
         type: 'in',
         employeeId: employeeId,
         loggedInAt: loggedInAt.toISOString() // send this to backend
@@ -89,7 +102,7 @@ export default function Dashboard() {
     
     const now = new Date();
     try {
-      const response = await axios.post('http://localhost:5000/api/employee/punch', {
+      const response = await axios.post('https://alpha-backend-7vs7.onrender.com/api/employee/punch', {
         type: 'out',
         employeeId: employeeId
       });
@@ -139,17 +152,13 @@ export default function Dashboard() {
   
   
 
-  const onChangeDate = (event, selectedDate) => {
-    const currentDate = selectedDate || new Date();
-    setShowDatePicker(false);
-    setCurrentDate(currentDate);
-  };
   useEffect(() => {
     const fetchLastPunchState = async () => {
       if (!employeeId) return;
   
       try {
-        const response = await axios.get(`http://localhost:5000/api/employee/lastPunch?employeeId=${employeeId}`);
+        
+        const response = await axios.get(`https://alpha-backend-7vs7.onrender.com/api/employee/lastPunch?employeeId=${employeeId}`);
         const lastPunchRecord = response.data;
   
         if (lastPunchRecord) {
@@ -226,6 +235,7 @@ export default function Dashboard() {
           <Icon name="sign-out" size={20} color="#fff" />
           <Text style={styles.footerText}>Logout</Text>
         </TouchableOpacity>
+
       </View>
     </View>
     
@@ -243,7 +253,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '88%',
     height: '20%',
-    backgroundColor: "grey",
+    backgroundColor: "white",
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -251,7 +261,7 @@ const styles = StyleSheet.create({
     border: "2px solid black"
   },
   clock: {
-    color: '#fff',
+    color: '#007BFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -271,7 +281,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 54,
     marginBottom: 20,
-    color: '#fff',
+    color: '#007BFF',
   },
   buttonContainer: {
     flexDirection: 'row',
