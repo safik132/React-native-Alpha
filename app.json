@@ -2,28 +2,34 @@
   "expo": {
     "name": "Alpha",
     "slug": "Alpha",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/aces-logo.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/aces-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#213966"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "bundleIdentifier": "com.safi11.Alpha",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to manage punch in and punch out records."
+      }
     }
     ,
     "android": {
+      
+      "versionCode": 2,
       "adaptiveIcon": {
         "foregroundImage": "./assets/aces-logo.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": ["ACCESS_FINE_LOCATION"],
       "package": "com.safi11.Alpha"
     },
     "web": {

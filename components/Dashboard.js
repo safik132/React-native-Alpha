@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity,Alert, Platform  } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import axios from 'axios'; 
+import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
+import { BackHandler} from 'react-native';
+import * as Location from 'expo-location';
 
 export default function Dashboard() {
   const [isPunchInEnabled, setPunchInEnabled] = useState(true);
@@ -12,7 +14,8 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date());
   const [employeeId, setEmployeeId] = useState(null);
   const [loggedInAt, setLoggedInAt] = useState(null);
-  const navigation = useNavigation(); 
+  const [username, setUsername] = useState('');
+  const navigation = useNavigation();
 
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -29,8 +32,18 @@ export default function Dashboard() {
     fetchEmployeeId();
   }, []);
 
+  useEffect(() => {
+    const fetchUsername = async () => {
+      const storedUsername = await AsyncStorage.getItem('username');
+      if (storedUsername) {
+        setUsername(storedUsername);
+      }
+    };
+
+    fetchUsername();
+  }, []);
   
-  
+
 
   useEffect(() => {
     const fetchLoggedInTime = async () => {
@@ -39,7 +52,7 @@ export default function Dashboard() {
         setLoggedInAt(new Date(loggedInTime));
       }
     };
-    
+
     fetchLoggedInTime();
   }, []);
   useEffect(() => {
@@ -51,11 +64,23 @@ export default function Dashboard() {
         setPunchInEnabled(true);
       }
     };
-    
+
     fetchPunchState();
   }, []);
-  
 
+  const getDistance = (lat1, lon1, lat2, lon2) => {
+    const toRad = (value) => value * Math.PI / 180;
+    const R = 6371e3; // Earth's radius in meters
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in meters
+  };
+  
+  
   const onSettingsPress = () => {
     // Navigate to settings or perform other actions
   };
@@ -67,42 +92,90 @@ export default function Dashboard() {
       await AsyncStorage.removeItem('userId');
       await AsyncStorage.removeItem('lastPunchState');
       await AsyncStorage.removeItem('loggedInAt');
-    
+      await AsyncStorage.removeItem('isLoggedIn');
+      await AsyncStorage.removeItem('lat');
+      await AsyncStorage.removeItem('lon');
+
       // Navigate to Login or any initial screen
       navigation.navigate('Homepage'); // Replace 'Login' with the name of your Login screen
-    } catch(e) {
+    } catch (e) {
       console.log("Error in logout:", e);
     }
   };
-  const punchIn = async () => {
-    // Make sure employeeId is available
-    if (!employeeId) return;
-    
-    const now = new Date();
-    try {
-      const response = await axios.post('https://alpha-backend-7vs7.onrender.com/api/employee/punch', {
-        type: 'in',
-        employeeId: employeeId,
-        loggedInAt: loggedInAt.toISOString() // send this to backend
-      });
-      setRecords([...records, { punchIn: now, punchOut: null }]);
-      await AsyncStorage.setItem('lastPunchState', 'in');
-      setPunchInEnabled(false);
-      console.log("Sending employeeId:", employeeId);
-      
+  useEffect(() => {
+    const backAction = () => {
+      Alert.alert('Exit App', 'Are you sure you want to exit?', [
+        {
+          text: 'Cancel',
+          onPress: () => null,
+          style: 'cancel',
+        },
+        { text: 'YES', onPress: () => BackHandler.exitApp() },
+      ]);
+      return true; // Prevent default behavior of going back
+    };
 
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      backAction
+    );
+
+    return () => backHandler.remove();
+  }, []);
+  
+  const punchIn = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Permission to access location was denied');
+      return;
+    }
+  
+    try {
+      const storedLat = await AsyncStorage.getItem('lat');
+      const storedLon = await AsyncStorage.getItem('lon');
+      console.log('Retrieved lat:', storedLat, 'lon:', storedLon);
+      
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+      console.log('Current Latitude:', latitude, 'Longitude:', longitude);
+  
+      if (storedLat && storedLon) {
+        const distance = getDistance(latitude, longitude, parseFloat(storedLat), parseFloat(storedLon));
+        console.log('Distance from stored location:', distance);
+        if (distance > 1000) {
+          Alert.alert('Punch Action not Allowed', 'You are not within the allowed range to punch in');
+          return;
+        }
+      } else {
+        Alert.alert('Error', 'Work location not set');
+        return;
+      }
+  
+      // API call for punching in
+      const response = await axios.post('https://alpha-backend-2.onrender.com/api/employee/punch', {
+        type: 'in',
+        employeeId,
+        loggedInAt,  
+        lat: latitude,
+        lon: longitude
+      });
+  
+      setPunchInEnabled(false);
+      setRecords(prev => ([...prev, { punchIn: new Date() }]));
     } catch (error) {
-      console.log(error);
+      console.log('Punch in error:', error);
+      Alert.alert('Error', 'Failed to punch in');
     }
   };
+  
 
   const punchOut = async (index) => {
     // Make sure employeeId is available
     if (!employeeId) return;
-    
+
     const now = new Date();
     try {
-      const response = await axios.post('https://alpha-backend-7vs7.onrender.com/api/employee/punch', {
+      const response = await axios.post('https://alpha-backend-2.onrender.com/api/employee/punch', {
         type: 'out',
         employeeId: employeeId
       });
@@ -141,30 +214,30 @@ export default function Dashboard() {
       }
     }
   };
-  
+
   const formatDateToDDMMYYYY = (date) => {
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
-  
+
     return `${day}-${month}-${year}`;
   };
-  
-  
+
+
 
   useEffect(() => {
     const fetchLastPunchState = async () => {
       if (!employeeId) return;
-  
+
       try {
-        
-        const response = await axios.get(`https://alpha-backend-7vs7.onrender.com/api/employee/lastPunch?employeeId=${employeeId}`);
+
+        const response = await axios.get(`https://alpha-backend-2.onrender.com/api/employee/lastPunch?employeeId=${employeeId}`);
         const lastPunchRecord = response.data;
-  
+
         if (lastPunchRecord) {
           const isPunchOutMissing = !lastPunchRecord.punchOut;
           setPunchInEnabled(!isPunchOutMissing);  // Enable "Punch Out" if only "Punch In" exists
-  
+
           setRecords([{
             punchIn: new Date(lastPunchRecord.punchIn),
             punchOut: lastPunchRecord.punchOut ? new Date(lastPunchRecord.punchOut) : null
@@ -174,63 +247,64 @@ export default function Dashboard() {
         console.log('Error fetching last punch state:', error);
       }
     };
-  
+
     fetchLastPunchState();
   }, [employeeId]);
-  
+
   return (
     <View style={styles.container}>
-    <View style={styles.headerWrapper}>
-        
-        <Text style={styles.header}>Schedule</Text>
+      <View style={styles.headerWrapper}>
+
+      <Text style={styles.header}>Welcome {username || '...'}</Text>
+
         <Text style={styles.clock}>{time.toLocaleTimeString()} {time.toDateString()}</Text>
       </View>
-    <View style={styles.mainContent}>
-    <View style={styles.contentWrapper}>
-      <View style={styles.buttonContainer}>
-      <TouchableOpacity 
-      style={[styles.button, !isPunchInEnabled && styles.buttonDisabled]} 
-      onPress={punchIn} 
-      disabled={!isPunchInEnabled}
-    >
-      <Text style={styles.buttonText}>Punch In</Text>
-    </TouchableOpacity>
-    
-        <TouchableOpacity style={[styles.button, isPunchInEnabled && styles.buttonDisabled]} onPress={() => punchOut(records.length - 1)} disabled={isPunchInEnabled}>
-          <Text style={styles.buttonText}>Punch Out</Text>
-        </TouchableOpacity>
-      </View>
+      <View style={styles.mainContent}>
+        <View style={styles.contentWrapper}>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, !isPunchInEnabled && styles.buttonDisabled]}
+              onPress={punchIn}
+              disabled={!isPunchInEnabled}
+            >
+              <Text style={styles.buttonText}>Punch In</Text>
+            </TouchableOpacity>
 
-      <Text style={styles.centerText} >{formatDateToDDMMYYYY(currentDate)}</Text>
-      <Text style={styles.loggedInText}>
-  Logged in at: {loggedInAt ? loggedInAt.toLocaleTimeString() : 'Fetching...'}
-</Text>
-
-      
-        
-
-        <ScrollView style={styles.tableScroll}>
-          <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <Text style={styles.tableHeader}>Punch In</Text>
-            <Text style={styles.tableHeader}>Punch Out</Text>
+            <TouchableOpacity style={[styles.button, isPunchInEnabled && styles.buttonDisabled]} onPress={() => punchOut(records.length - 1)} disabled={isPunchInEnabled}>
+              <Text style={styles.buttonText}>Punch Out</Text>
+            </TouchableOpacity>
           </View>
-          {records.map((record, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={styles.tableCell}>{formatDate(record.punchIn)}</Text>
-              <Text style={styles.tableCell}>{record.punchOut ? formatDate(record.punchOut) : '---'}</Text>
+
+          <View style={styles.textContainer}>
+            <Text style={styles.boldText}> Date</Text>
+            <Text style={styles.normalText}>{formatDateToDDMMYYYY(currentDate)}</Text>
+            <Text style={styles.normalText}>
+              Logged in at: {loggedInAt ? loggedInAt.toLocaleTimeString() : 'Fetching...'}
+            </Text>
+          </View>
+
+          <ScrollView style={styles.tablemain}>
+            <View style={styles.table}>
+              <View style={styles.tableRow}>
+                <Text style={styles.tableHeader}>Punch In</Text>
+                <Text style={styles.tableHeader}>Punch Out</Text>
+              </View>
+              {records.map((record, index) => (
+                <View key={index} style={styles.tableRow}>
+                  <Text style={styles.tableCell}>{formatDate(record.punchIn)}</Text>
+                  <Text style={styles.tableCell}>{record.punchOut ? formatDate(record.punchOut) : '---'}</Text>
+                </View>
+              ))}
             </View>
-          ))}
+
+          </ScrollView>
         </View>
-      
-        </ScrollView>
-      </View>
       </View>
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.footerButton} onPress={onSettingsPress}>
+       {/* <TouchableOpacity style={styles.footerButton} onPress={onSettingsPress}>
           <Icon name="cog" size={20} color="#fff" />
           <Text style={styles.footerText}>Settings</Text>
-        </TouchableOpacity>
+              </TouchableOpacity>*/}
         <TouchableOpacity style={styles.footerButton} onPress={onLogoutPress}>
           <Icon name="sign-out" size={20} color="#fff" />
           <Text style={styles.footerText}>Logout</Text>
@@ -238,10 +312,9 @@ export default function Dashboard() {
 
       </View>
     </View>
-    
+
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -257,11 +330,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop:50,
+    marginTop: 50,
     border: "2px solid black"
   },
   clock: {
-    color: '#007BFF',
+    color: 'black',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -274,14 +347,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 20,
-    height: 400, 
-    width: 350, 
+    height: 400,
+    width: 350,
     border: "2px solid black"
   },
   header: {
-    fontSize: 54,
+    fontSize: 34,
     marginBottom: 20,
-    color: '#007BFF',
+    color: 'black',
+    fontWeight: 'bold', // Make the text bold
+    fontFamily: 'sans-serif', // Use the specific font you have imported
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -289,7 +364,7 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 20,
   },
-  
+
   button: {
     backgroundColor: '#007BFF',
     paddingVertical: 15,
@@ -309,38 +384,93 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     fontSize: 18,
   },
+ 
+  tablemain: {
+    fontSize: 14,
+    backgroundColor: '#fff',
+    padding: 1,
+    borderRadius: 15,
+    borderColor: "black",
+    shadowColor: '#000', // Shadow for depth
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1, // Softer shadow
+    shadowRadius: 4,
+    elevation: 3,
+  },
   tableRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    backgroundColor: '#E0E0E0',  
+    alignItems: 'center',
+    backgroundColor: '#f2f2f2', // Light grey background for even rows
+    borderBottomWidth: 1,
+    borderColor: '#ddd', // Border color for separation
+  },
+  tableHeader: {
+    flex: 1,
+    padding: 10,
+    backgroundColor: '#e6e6e6', // Slightly darker grey for headers
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   tableCell: {
-    fontSize: 14,
-    backgroundColor: '#F5F5F5',  
+    flex: 1,
     padding: 10,
+    textAlign: 'center',
+  },
+  oddRow: {
+    backgroundColor: '#fff', // White background for odd rows
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     backgroundColor: '#526891',
     width: '100%',
     padding: 10,
-    height:"10%"
+    height: "10%"
   },
   footerButton: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'right',
+    
   },
   footerText: {
     marginLeft: 5,
     color: '#fff',
     fontSize: 16,
+    
   },
-  loggedInText: {
-    color: '#000',
+  textContainer: {
+    backgroundColor: '#fff', // White background for the text container
+    borderRadius: 10, // Rounded corners for the text container
+    borderWidth: 2, // Slightly thicker border for a bolder look
+    borderColor: '#ddd', // Light gray border color
+    paddingHorizontal: 20, // Horizontal padding
+    paddingVertical: 10, // Vertical padding
+    marginBottom: 20, // Margin at the bottom to separate from other items
+    shadowColor: '#000', // Shadow for depth
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1, // Softer shadow
+    shadowRadius: 4,
+    elevation: 3, // Elevation for Android shadow
+  },
+  boldText: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    color: '#333', // Darker text color for contrast
+    textAlign: 'center', // Center the text
+    fontFamily: 'Helvetica Neue', // Or any other modern font
+  },
+  normalText: {
     fontSize: 16,
-    margin: 10,
+    color: '#333', // Consistent text color for readability
+    textAlign: 'center', // Center the text
+    fontFamily: 'Helvetica Neue', // Consistent font family
   },
 });

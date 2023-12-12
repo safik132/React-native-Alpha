@@ -3,20 +3,23 @@
     "version": ">= 5.4.0"
   },
   "build": {
-    "development": {
-      "distribution": "internal"
-    },
-    "production": {
-      "ios": {},
+    "preview": {
       "android": {
         "buildType": "apk"
+      }
+    },
+    "preview2": {
+      "android": {
+        "gradleCommand": ":app:assembleRelease"
+      }
+    },
+    "production": {
+      "android": {
+        "gradleCommand": ":app:bundleRelease"
       }
     }
   },
   "submit": {
-    "production": {
-      "ios": {},
-      "android": {}
-    }
+    "production": {}
   }
 }
