@@ -127,7 +127,7 @@ export default function Dashboard() {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission Denied', 'Permission to access location was denied');
-      return;
+       return;
     }
   
     try {
